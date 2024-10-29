@@ -1,182 +1,192 @@
 package com.cribl.interview.service;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
+import org.mockito.Mockito;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 class LogServiceTest {
 
-    private static final String DIRECTORY = "/var/log/";
-    private static final String FILENAME = "system.log";
+    private static final String testDirectory = "/test/path/";
+    private static final String testFilename = "test.log";
+    private static final int testLimit = 3;
+    List<String> mockLines = List.of(
+        "first line",
+        "second line",
+        "third line",
+        "fourth line"
+    );
 
-    @InjectMocks
-    private LogService logService;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    private final LogService logService = new LogService(testDirectory);
 
     @Test
-    void testGetLogsWithIOException() {
+    void testGetLogsCatchException() {
         // arrange
-        int limit = 3;
-        String keyword = null;
+        try (MockedStatic<Paths> mockPaths = Mockito.mockStatic(Paths.class);
+             MockedStatic<Files> mockFiles = Mockito.mockStatic(Files.class)) {
+            Path mockPath = Mockito.mock(Path.class);
+            BufferedReader mockBufferedReader = Mockito.mock(BufferedReader.class);
 
-        // mock static file path
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            Path mockPath = Path.of(DIRECTORY + FILENAME);
-            mockedFiles.when(() -> Files.lines(mockPath)).thenThrow(new IOException("File not found"));
+            mockPaths.when(() -> Paths.get(testDirectory + testFilename)).thenReturn(mockPath);
+            mockFiles.when(() -> Files.newBufferedReader(mockPath)).thenReturn(mockBufferedReader);
+            when(mockBufferedReader.readLine()).thenThrow(new IOException("File not found"));
 
             // act & assert
-            assertDoesNotThrow(() -> logService.getLogs(FILENAME, limit, keyword));
+            assertDoesNotThrow(() -> logService.getLogs(testFilename, testLimit, null));
+        } catch (IOException e) {
+            fail("Failure: IOException thrown");
         }
     }
 
     @Test
     void testGetLogsWithEmptyFile() {
         // arrange
-        int limit = 3;
-        String keyword = null;
+        try (MockedStatic<Paths> mockPaths = Mockito.mockStatic(Paths.class);
+             MockedStatic<Files> mockFiles = Mockito.mockStatic(Files.class)) {
+            Path mockPath = Mockito.mock(Path.class);
+            BufferedReader mockBufferedReader = Mockito.mock(BufferedReader.class);
 
-        List<String> mockLogs = List.of();
-
-        // mock static file path
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            Path mockPath = Path.of(DIRECTORY + FILENAME);
-            Stream<String> mockStream = mockLogs.stream();
-            mockedFiles.when(() -> Files.lines(mockPath)).thenReturn(mockStream);
+            mockPaths.when(() -> Paths.get(testDirectory + testFilename)).thenReturn(mockPath);
+            mockFiles.when(() -> Files.newBufferedReader(mockPath)).thenReturn(mockBufferedReader);
+            when(mockBufferedReader.readLine()).thenReturn(null);
 
             // act
-            List<String> result = logService.getLogs(FILENAME, limit, keyword);
+            List<String> result = logService.getLogs(testFilename, testLimit, null);
 
             // assert
             assertEquals(0, result.size());
+        } catch (IOException e) {
+            fail("Failure: IOException thrown");
         }
     }
 
     @Test
     void testGetLogsWithLimitOfZero() {
         // arrange
-        int limit = 0;
-        String keyword = null;
+        try (MockedStatic<Paths> mockPaths = Mockito.mockStatic(Paths.class);
+             MockedStatic<Files> mockFiles = Mockito.mockStatic(Files.class)) {
+            Path mockPath = Mockito.mock(Path.class);
+            BufferedReader mockBufferedReader = Mockito.mock(BufferedReader.class);
 
-        List<String> mockLogs = Arrays.asList(
-                "first line",
-                "second line",
-                "third line",
-                "fourth line"
-        );
-
-        // mock static file path
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            Path mockPath = Path.of(DIRECTORY + FILENAME);
-            Stream<String> mockStream = mockLogs.stream();
-            mockedFiles.when(() -> Files.lines(mockPath)).thenReturn(mockStream);
+            mockPaths.when(() -> Paths.get(testDirectory + testFilename)).thenReturn(mockPath);
+            mockFiles.when(() -> Files.newBufferedReader(mockPath)).thenReturn(mockBufferedReader);
+            when(mockBufferedReader.readLine())
+                    .thenReturn(mockLines.get(0))
+                    .thenReturn(mockLines.get(1))
+                    .thenReturn(mockLines.get(2))
+                    .thenReturn(mockLines.get(3))
+                    .thenReturn(null);  // simulate end of file
 
             // act
-            List<String> result = logService.getLogs(FILENAME, limit, keyword);
+            List<String> result = logService.getLogs(testFilename, 0, null);
 
             // assert
             assertEquals(0, result.size());
+        } catch (IOException e) {
+            fail("Failure: IOException thrown");
         }
     }
 
     @Test
     void testGetLogsWithoutKeyword() {
         // arrange
-        int limit = 3;
-        String keyword = null;
+        try (MockedStatic<Paths> mockPaths = Mockito.mockStatic(Paths.class);
+             MockedStatic<Files> mockFiles = Mockito.mockStatic(Files.class)) {
+            Path mockPath = Mockito.mock(Path.class);
+            BufferedReader mockBufferedReader = Mockito.mock(BufferedReader.class);
 
-        List<String> mockLogs = Arrays.asList(
-                "first line",
-                "second line",
-                "third line",
-                "fourth line"
-        );
-
-        // mock static file path
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            Path mockPath = Path.of(DIRECTORY + FILENAME);
-            Stream<String> mockStream = mockLogs.stream();
-            mockedFiles.when(() -> Files.lines(mockPath)).thenReturn(mockStream);
+            mockPaths.when(() -> Paths.get(testDirectory + testFilename)).thenReturn(mockPath);
+            mockFiles.when(() -> Files.newBufferedReader(mockPath)).thenReturn(mockBufferedReader);
+            when(mockBufferedReader.readLine())
+                .thenReturn(mockLines.get(0))
+                .thenReturn(mockLines.get(1))
+                .thenReturn(mockLines.get(2))
+                .thenReturn(mockLines.get(3))
+                .thenReturn(null);  // simulate end of file
 
             // act
-            List<String> result = logService.getLogs(FILENAME, limit, keyword);
+            List<String> result = logService.getLogs(testFilename, testLimit, null);
 
             // assert
             assertEquals(3, result.size());
             assertEquals("fourth line", result.get(0)); // latest line returned first
             assertEquals("third line", result.get(1));
             assertEquals("second line", result.get(2));
+        } catch (IOException e) {
+            fail("Failure: IOException thrown");
         }
     }
 
     @Test
     void testGetLogsWithoutKeywordMatch() {
         // arrange
-        int limit = 3;
-        String keyword = "find me";
+        try (MockedStatic<Paths> mockPaths = Mockito.mockStatic(Paths.class);
+             MockedStatic<Files> mockFiles = Mockito.mockStatic(Files.class)) {
+            Path mockPath = Mockito.mock(Path.class);
+            BufferedReader mockBufferedReader = Mockito.mock(BufferedReader.class);
 
-        List<String> mockLogs = Arrays.asList(
-                "first not found",
-                "second not found",
-                "third not found",
-                "fourth not found"
-        );
-
-        // mock static file path
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            Path mockPath = Path.of(DIRECTORY + FILENAME);
-            Stream<String> mockStream = mockLogs.stream();
-            mockedFiles.when(() -> Files.lines(mockPath)).thenReturn(mockStream);
+            mockPaths.when(() -> Paths.get(testDirectory + testFilename)).thenReturn(mockPath);
+            mockFiles.when(() -> Files.newBufferedReader(mockPath)).thenReturn(mockBufferedReader);
+            when(mockBufferedReader.readLine())
+                    .thenReturn(mockLines.get(0))
+                    .thenReturn(mockLines.get(1))
+                    .thenReturn(mockLines.get(2))
+                    .thenReturn(mockLines.get(3))
+                    .thenReturn(null);  // simulate end of file
 
             // act
-            List<String> result = logService.getLogs(FILENAME, limit, keyword);
+            List<String> result = logService.getLogs(testFilename, testLimit, "not-found");
 
             // assert
             assertEquals(0, result.size());
+        } catch (IOException e) {
+            fail("Failure: IOException thrown");
         }
     }
 
     @Test
     void testGetLogsWithKeywordMatch() {
         // arrange
-        int limit = 3;
-        String keyword = "find me";
-
-        List<String> mockLogs = Arrays.asList(
-                "find me first",
-                "second line",
-                "find me last",
-                "fourth line"
+        List<String> mockLinesWithKeywordMatch = List.of(
+            "first found line",
+            "second found line",
+            "third line",
+            "fourth found line"
         );
 
-        // mock static file path
-        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
-            Path mockPath = Path.of(DIRECTORY + FILENAME);
-            Stream<String> mockStream = mockLogs.stream();
-            mockedFiles.when(() -> Files.lines(mockPath)).thenReturn(mockStream);
+        try (MockedStatic<Paths> mockPaths = Mockito.mockStatic(Paths.class);
+             MockedStatic<Files> mockFiles = Mockito.mockStatic(Files.class)) {
+            Path mockPath = Mockito.mock(Path.class);
+            BufferedReader mockBufferedReader = Mockito.mock(BufferedReader.class);
+
+            mockPaths.when(() -> Paths.get(testDirectory + testFilename)).thenReturn(mockPath);
+            mockFiles.when(() -> Files.newBufferedReader(mockPath)).thenReturn(mockBufferedReader);
+            when(mockBufferedReader.readLine())
+                    .thenReturn(mockLinesWithKeywordMatch.get(0))
+                    .thenReturn(mockLinesWithKeywordMatch.get(1))
+                    .thenReturn(mockLinesWithKeywordMatch.get(2))
+                    .thenReturn(mockLinesWithKeywordMatch.get(3))
+                    .thenReturn(null);  // simulate end of file
 
             // act
-            List<String> result = logService.getLogs(FILENAME, limit, keyword);
+            List<String> result = logService.getLogs(testFilename, testLimit, "found");
 
             // assert
-            assertEquals(2, result.size());
-            assertEquals("find me last", result.get(0));    // latest line returned first
-            assertEquals("find me first", result.get(1));
+            assertEquals(3, result.size());
+            assertEquals("fourth found line", result.get(0)); // latest line returned first
+            assertEquals("second found line", result.get(1));
+            assertEquals("first found line", result.get(2));
+        } catch (IOException e) {
+            fail("Failure: IOException thrown");
         }
     }
 }

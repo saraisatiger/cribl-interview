@@ -1,52 +1,57 @@
 package com.cribl.interview.service;
 
-import org.springframework.stereotype.Service;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.stream.Stream;
+import java.util.*;
 
-@Service
 public class LogService {
 
     private static final Logger logger = LoggerFactory.getLogger(LogService.class);
 
-    private static final String LOG_DIRECTORY = "/var/log/";
+    private final String logDirectory;
+
+    public LogService(String logDirectory) {
+        this.logDirectory = logDirectory;
+    }
 
     public List<String> getLogs(String filename, int limit, String keyword) {
-        Path logFilePath = Paths.get(LOG_DIRECTORY + filename);
+        return readFile(filename, limit, keyword);
+    }
 
-        try (Stream<String> lines = Files.lines(logFilePath)) {
+    private List<String> readFile(String filename, int limit, String keyword) {
+        Stack<String> stack = new Stack<>();
+        List<String> result = new ArrayList<>();
 
-            List<String> logList = lines.toList();
-            List<String> reverseLogList = new ArrayList<>();
-            ListIterator<String> listIterator = logList.listIterator(logList.size());
+        try {
+            Path filePath = Paths.get(logDirectory + filename);
+            BufferedReader bufferedReader = Files.newBufferedReader(filePath);
+            String line;
 
-            // reverse list of logs
-            while (listIterator.hasPrevious()){
-                String logElement = listIterator.previous();
-                reverseLogList.add(logElement);
+            // read file line by line
+            while ((line = bufferedReader.readLine()) != null) {
+                // if requested filter applies, push line to stack
+                if (keyword == null || line.toLowerCase().contains(keyword.toLowerCase())) {
+                    stack.push(line);
+                }
             }
 
-            return reverseLogList.stream()
-                    // apply requested filter
-                    .filter(line -> keyword == null || line.toLowerCase().contains(keyword.toLowerCase()))
-                    // apply requested limit
-                    .limit(limit)
-                    .toList();
+            bufferedReader.close();
 
-        } catch (IOException e) {
+            int counter = 0;
+            // apply requested limit
+            while (!stack.empty() && counter < limit) {
+                result.add(stack.pop());    // fill result list with reversed file content
+                counter++;
+            }
+        } catch (Exception e) {
             logger.error("Failed to read log file: {}", filename);
-
-            return List.of();
         }
+
+        return result;
     }
 }

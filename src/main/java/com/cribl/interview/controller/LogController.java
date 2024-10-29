@@ -1,7 +1,6 @@
 package com.cribl.interview.controller;
 
 import com.cribl.interview.service.LogService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -9,11 +8,12 @@ import java.util.List;
 @RequestMapping("/api/logs")
 public class LogController {
 
-    @Autowired
-    private LogService logService;
+    private final LogService logService;
 
-    public LogController(LogService logService) {
-        this.logService = logService;
+    public LogController() {
+        String logDirectory = "/var/log/";
+
+        this.logService = new LogService(logDirectory);
     }
 
     @GetMapping
